@@ -15,8 +15,6 @@ public:
 
   virtual void allocOutputImage() = 0;
 
-  virtual void clearImage() = 0;
-
   virtual void advanceAnimation() = 0;
 
   virtual void render() = 0;

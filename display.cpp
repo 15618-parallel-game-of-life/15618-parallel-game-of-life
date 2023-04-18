@@ -106,11 +106,6 @@ void renderPicture() {
 
   double startTime = CycleTimer::currentSeconds();
 
-  // clear screen
-  gDisplay.renderer->clearImage();
-
-  double endClearTime = CycleTimer::currentSeconds();
-
   // update particle positions and state
   if (gDisplay.updateSim) {
     gDisplay.renderer->advanceAnimation();
@@ -126,8 +121,7 @@ void renderPicture() {
   double endRenderTime = CycleTimer::currentSeconds();
 
   if (gDisplay.printStats) {
-    printf("Clear:    %.3f ms\n", 1000.f * (endClearTime - startTime));
-    printf("Advance:  %.3f ms\n", 1000.f * (endSimTime - endClearTime));
+    printf("Advance:  %.3f ms\n", 1000.f * (endSimTime - startTime));
     printf("Render:   %.3f ms\n", 1000.f * (endRenderTime - endSimTime));
   }
 }

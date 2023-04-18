@@ -41,8 +41,6 @@ public:
     image = new Image(size * pixelSize, size * pixelSize);
   }
 
-  void clearImage() {}
-
   void advanceAnimation() {
     for (int i = 0; i < size; i++) {
       for (int j = 0; j < size; j++) {
@@ -80,9 +78,9 @@ public:
                 (i * pixelSize + ii) * size * pixelSize + (j * pixelSize + jj);
 
             float *imgPtr = &image->data[4 * idx2];
-            imgPtr[0] = (c == 0) ? 1.0f : 0.0f;
-            imgPtr[1] = (c == 0) ? 1.0f : 0.0f;
-            imgPtr[2] = (c == 0) ? 1.0f : 0.0f;
+            imgPtr[0] = (c == 1) ? 1.0f : 0.0f;
+            imgPtr[1] = (c == 1) ? 1.0f : 0.0f;
+            imgPtr[2] = (c == 1) ? 1.0f : 0.0f;
             imgPtr[3] = 1.0f;
           }
         }
