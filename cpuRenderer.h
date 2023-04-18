@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
 #include "frameRenderer.h"
 #include "image.h"
@@ -65,13 +66,10 @@ public:
   }
 
   void render() {
-    int total = 0;
     for (int i = 0; i < size; i++) {
       for (int j = 0; j < size; j++) {
         int idx = i * size + j;
         int c = currentFrame[idx];
-        if (c == 1)
-          total++;
         for (int ii = 0; ii < pixelSize; ii++) {
           for (int jj = 0; jj < pixelSize; jj++) {
             int idx2 =
@@ -86,7 +84,6 @@ public:
         }
       }
     }
-    printf("Total %d\n", total);
   }
 };
 

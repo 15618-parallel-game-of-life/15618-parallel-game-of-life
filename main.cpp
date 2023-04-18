@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "cpuRenderer.h"
+#include "cudaRenderer.h"
 #include "platformgl.h"
 
 void startRendererWithDisplay(FrameRenderer *renderer);
@@ -39,7 +40,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  auto *renderer = new CpuRenderer(initFrame, frameSize, pixelSize);
+  auto *renderer = new CudaRenderer(initFrame, frameSize, pixelSize);
 
   renderer->allocOutputImage();
   renderer->setup();
