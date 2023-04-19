@@ -15,10 +15,10 @@ void startBenchmark(FrameRenderer *renderer, int simCycles, int size,
                     const std::string &frameFilename);
 
 int main(int argc, char *argv[]) {
-  if (argc < 6) {
-    std::cout
-        << "Usage: " << argv[0]
-        << " <size> <input_file> <sim cycles> <pixel_size> <output_file>\n";
+  if (argc < 7) {
+    std::cout << "Usage: " << argv[0]
+              << " <size> <input_file> <enable_gpu> <sim cycles> <pixel_size> "
+                 "<output_file>\n";
     return 1;
   }
   int frameSize = std::atoi(argv[1]);
@@ -27,9 +27,10 @@ int main(int argc, char *argv[]) {
     std::cout << "Error opening input file argv[2]\n";
     return 1;
   }
-  int simCycles = std::atoi(argv[3]);
-  int pixelSize = std::atoi(argv[4]);
-  std::string frameFilename = argv[5];
+  int enableGpu = std::atoi(argv[3]);
+  int simCycles = std::atoi(argv[4]);
+  int pixelSize = std::atoi(argv[5]);
+  std::string frameFilename = argv[6];
 
   auto *initFrame = new uint8_t[frameSize * frameSize];
 
@@ -46,7 +47,11 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  auto *renderer = new CudaRenderer(initFrame, frameSize, pixelSize);
+  FrameRenderer *renderer;
+  if (enableGpu)
+    renderer = new CudaRenderer(initFrame, frameSize, pixelSize);
+  else
+    renderer = new CpuRenderer(initFrame, frameSize, pixelSize);
 
   renderer->allocOutputImage();
   renderer->setup();
