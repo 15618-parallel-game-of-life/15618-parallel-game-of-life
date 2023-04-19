@@ -3,3 +3,4 @@ objs
 render
 ref
 __pycache__
+outputs/

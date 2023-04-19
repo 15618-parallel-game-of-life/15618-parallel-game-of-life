@@ -32,6 +32,8 @@ public:
     delete[] nextFrame;
   }
 
+  const uint8_t *getFrame() { return currentFrame; }
+
   const Image *getImage() { return image; }
 
   void setup() {}

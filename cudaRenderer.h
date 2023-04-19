@@ -13,6 +13,7 @@ class CudaRenderer : public FrameRenderer
 private:
   Image *image;
   uint8_t *initFrame;
+  uint8_t *tmpFrame;
   int size, pixelSize;
 
   uint8_t *deviceCurrentFrame;
@@ -27,9 +28,12 @@ public:
     deviceCurrentFrame = nullptr;
     deviceNextFrame = nullptr;
     deviceImageData = nullptr;
+    tmpFrame = new uint8_t[size * size];
   }
 
   virtual ~CudaRenderer();
+
+  const uint8_t *getFrame();
 
   const Image *getImage();
 

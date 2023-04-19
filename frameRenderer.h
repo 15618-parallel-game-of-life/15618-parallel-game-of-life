@@ -9,6 +9,8 @@ class FrameRenderer {
 public:
   virtual ~FrameRenderer(){};
 
+  virtual const uint8_t *getFrame() = 0;
+
   virtual const Image *getImage() = 0;
 
   virtual void setup() = 0;

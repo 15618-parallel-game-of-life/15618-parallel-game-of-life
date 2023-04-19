@@ -38,8 +38,6 @@ struct GlobalConstants
   int size;
   int pixelSize;
   float *imageData;
-  uint8_t *currentFrame;
-  uint8_t *nextFrame;
 };
 
 __constant__ GlobalConstants cuConstRendererParams;
@@ -48,7 +46,7 @@ __constant__ GlobalConstants cuConstRendererParams;
 
 // CUDA kernel functions start here
 
-__global__ void kernelAdvanceAnimation()
+__global__ void kernelAdvanceAnimation(uint8_t *current, uint8_t *next)
 {
   int idxX = blockIdx.x * blockDim.x + threadIdx.x;
   int idxY = blockIdx.y * blockDim.y + threadIdx.y;
@@ -67,18 +65,18 @@ __global__ void kernelAdvanceAnimation()
       int idx2 = ((ii + size) % size) * size + (jj + size) % size;
       if (idx2 == idx)
         continue;
-      if (cuConstRendererParams.currentFrame[idx2])
+      if (current[idx2])
         count++;
     }
   }
 
-  if (count == 3 || (count == 2 && cuConstRendererParams.currentFrame[idx]))
-    cuConstRendererParams.nextFrame[idx] = 1;
+  if (count == 3 || (count == 2 && current[idx]))
+    next[idx] = 1;
   else
-    cuConstRendererParams.nextFrame[idx] = 0;
+    next[idx] = 0;
 }
 
-__global__ void kernelRenderFrame()
+__global__ void kernelRenderFrame(uint8_t *frame)
 {
   int imageX = blockIdx.x * blockDim.x + threadIdx.x;
   int imageY = blockIdx.y * blockDim.y + threadIdx.y;
@@ -93,7 +91,7 @@ __global__ void kernelRenderFrame()
   int idxY = imageY / pixelSize;
 
   int idx = (idxX * size + idxY);
-  uint8_t c = cuConstRendererParams.currentFrame[idx];
+  uint8_t c = frame[idx];
   float4 imgPixel;
   if (c == 1)
     imgPixel = make_float4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -118,6 +116,19 @@ CudaRenderer::~CudaRenderer()
     cudaFree(deviceNextFrame);
     cudaFree(deviceImageData);
   }
+  if (tmpFrame) {
+    delete[] tmpFrame;
+  }
+}
+
+const uint8_t *CudaRenderer::getFrame()
+{
+  cudaMemcpy(tmpFrame,
+             deviceCurrentFrame,
+             sizeof(uint8_t) * size * size,
+             cudaMemcpyDeviceToHost);
+
+  return tmpFrame;
 }
 
 const Image *CudaRenderer::getImage()
@@ -166,8 +177,6 @@ void CudaRenderer::setup()
   params.size = size;
   params.pixelSize = pixelSize;
   params.imageData = deviceImageData;
-  params.currentFrame = deviceCurrentFrame;
-  params.nextFrame = deviceNextFrame;
 
   cudaMemcpyToSymbol(cuConstRendererParams, &params, sizeof(GlobalConstants));
 }
@@ -181,11 +190,11 @@ void CudaRenderer::advanceAnimation()
       (image->height + blockDim.y - 1) / blockDim.y);
 
   // pixel-level parallelism
-  kernelAdvanceAnimation<<<gridDim, blockDim>>>();
+  kernelAdvanceAnimation<<<gridDim, blockDim>>>(deviceCurrentFrame, deviceNextFrame);
   cudaCheckError(cudaDeviceSynchronize());
 
   // swap currentFrame and nextFrame
-  std::swap(cuConstRendererParams.currentFrame, cuConstRendererParams.nextFrame);
+  std::swap(deviceCurrentFrame, deviceNextFrame);
 }
 
 void CudaRenderer::render()
@@ -197,7 +206,7 @@ void CudaRenderer::render()
       (image->height + blockDim.y - 1) / blockDim.y);
 
   // pixel-level parallelism
-  kernelRenderFrame<<<gridDim, blockDim>>>();
+  kernelRenderFrame<<<gridDim, blockDim>>>(deviceCurrentFrame);
   cudaCheckError(cudaDeviceSynchronize());
 }
 
