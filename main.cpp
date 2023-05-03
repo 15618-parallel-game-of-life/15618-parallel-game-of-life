@@ -56,24 +56,6 @@ int main(int argc, char *argv[]) {
   renderer->allocOutputImage();
   renderer->setup();
 
-  {
-    const uint8_t *currentFrame = renderer->getFrame();
-    char filename[1024];
-    sprintf(filename, "outputs/%s_1111.txt", frameFilename.c_str());
-    FILE *fp = fopen(filename, "wb");
-    if (!fp) {
-      fprintf(stderr, "Error: could not open %s for write\n", filename);
-      exit(1);
-    }
-    for (int i = 0; i < frameSize; i++) {
-      for (int j = 0; j < frameSize; j++) {
-        fprintf(fp, "%d ", currentFrame[i * frameSize + j]);
-      }
-      fprintf(fp, "\n");
-    }
-    fclose(fp);
-  }
-
   if (simCycles >= 0) {
     startBenchmark(renderer, simCycles, frameSize, frameFilename);
   } else {
