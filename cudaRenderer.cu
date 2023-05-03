@@ -147,9 +147,9 @@ void CudaRenderer::setup()
   std::string name;
   cudaError_t err = cudaGetDeviceCount(&deviceCount);
 
-  printf("---------------------------------------------------------\n");
-  printf("Initializing CUDA for CudaRenderer\n");
-  printf("Found %d CUDA devices\n", deviceCount);
+  // printf("---------------------------------------------------------\n");
+  // printf("Initializing CUDA for CudaRenderer\n");
+  // printf("Found %d CUDA devices\n", deviceCount);
 
   for (int i = 0; i < deviceCount; i++)
   {
@@ -157,12 +157,12 @@ void CudaRenderer::setup()
     cudaGetDeviceProperties(&deviceProps, i);
     name = deviceProps.name;
 
-    printf("Device %d: %s\n", i, deviceProps.name);
-    printf("   SMs:        %d\n", deviceProps.multiProcessorCount);
-    printf("   Global mem: %.0f MB\n", static_cast<float>(deviceProps.totalGlobalMem) / (1024 * 1024));
-    printf("   CUDA Cap:   %d.%d\n", deviceProps.major, deviceProps.minor);
+    // printf("Device %d: %s\n", i, deviceProps.name);
+    // printf("   SMs:        %d\n", deviceProps.multiProcessorCount);
+    // printf("   Global mem: %.0f MB\n", static_cast<float>(deviceProps.totalGlobalMem) / (1024 * 1024));
+    // printf("   CUDA Cap:   %d.%d\n", deviceProps.major, deviceProps.minor);
   }
-  printf("---------------------------------------------------------\n");
+  // printf("---------------------------------------------------------\n");
 
   // allocate memory storage on device
   cudaMalloc(&deviceCurrentFrame, sizeof(uint8_t) * size * size);
@@ -181,10 +181,11 @@ void CudaRenderer::setup()
   cudaMemcpyToSymbol(cuConstRendererParams, &params, sizeof(GlobalConstants));
 }
 
+#define SQRT_NUM_THREADS 16
+
 void CudaRenderer::advanceAnimation()
 {
-  // suppose we have 256 threads
-  dim3 blockDim(16, 16, 1);
+  dim3 blockDim(SQRT_NUM_THREADS, SQRT_NUM_THREADS, 1);
   dim3 gridDim(
       (image->width + blockDim.x - 1) / blockDim.x,
       (image->height + blockDim.y - 1) / blockDim.y);
@@ -199,8 +200,7 @@ void CudaRenderer::advanceAnimation()
 
 void CudaRenderer::render()
 {
-  // suppose we have 256 threads
-  dim3 blockDim(16, 16, 1);
+  dim3 blockDim(SQRT_NUM_THREADS, SQRT_NUM_THREADS, 1);
   dim3 gridDim(
       (image->width + blockDim.x - 1) / blockDim.x,
       (image->height + blockDim.y - 1) / blockDim.y);

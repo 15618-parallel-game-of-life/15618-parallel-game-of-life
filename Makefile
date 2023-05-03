@@ -1,43 +1,29 @@
-EXECUTABLE := render
-LDFLAGS=-L/usr/local/cuda-11.7/lib64/ -lcudart
 CU_FILES   := cudaRenderer.cu
-CU_DEPS    :=
 CC_FILES   := main.cpp display.cpp
-LOGS	   := logs
+EXECUTABLE := render
+OBJS = $(OBJDIR)/main.o $(OBJDIR)/display.o $(OBJDIR)/cudaRenderer.o
+
+ARCH = $(shell uname | sed -e 's/-.*//g')
+OBJDIR = objs
+CXX = g++ -m64
+CXXFLAGS = -O3 -Wall -fopenmp
+LDFLAGS = -L/usr/local/cuda-11.7/lib64/ -lcudart
+NVCC = nvcc
+NVCCFLAGS = -O3 -m64 --gpu-architecture compute_61 -ccbin /usr/bin/gcc
+HOSTNAME = $(shell hostname)
+
+LIBS := GL glut cudart
+LDLIBS  := $(addprefix -l, $(LIBS))
 
 all: $(EXECUTABLE)
-
-###########################################################
-
-ARCH=$(shell uname | sed -e 's/-.*//g')
-OBJDIR=objs
-CXX=g++ -m64
-CXXFLAGS=-O3 -Wall -g
-HOSTNAME=$(shell hostname)
-
-LIBS       :=
-FRAMEWORKS :=
-
-NVCCFLAGS=-O3 -m64 --gpu-architecture compute_61 -ccbin /usr/bin/gcc
-LIBS += GL glut cudart
-
-LDLIBS  := $(addprefix -l, $(LIBS))
-LDFRAMEWORKS := $(addprefix -framework , $(FRAMEWORKS))
-
-NVCC=nvcc
-
-OBJS=$(OBJDIR)/main.o $(OBJDIR)/display.o $(OBJDIR)/cudaRenderer.o
-
-
-.PHONY: dirs clean
 
 default: $(EXECUTABLE)
 
 dirs:
-		mkdir -p $(OBJDIR)/
+		@mkdir -p $(OBJDIR)/
 
 clean:
-		rm -rf $(OBJDIR) *~ $(EXECUTABLE) $(LOGS) *.ppm
+		rm -rf $(OBJDIR) *~ $(EXECUTABLE) $(LOGS)
 
 $(EXECUTABLE): dirs $(OBJS)
 		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS) $(LDFRAMEWORKS)
@@ -47,3 +33,5 @@ $(OBJDIR)/%.o: %.cpp
 
 $(OBJDIR)/%.o: %.cu
 		$(NVCC) $< $(NVCCFLAGS) -c -o $@
+
+.PHONY: dirs clean
