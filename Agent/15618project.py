@@ -4,12 +4,12 @@ import numpy as np
 import random
 from cpu_renderer_wrapper import PyCpuRenderer
 
-grid_size = 20
-init_size = 10
+grid_size = 100
+init_size = 30
 sim_cycles = 1000
-num_place = 10
+num_place = 400
 num_model = 20
-episodes = 100000
+episodes = 10
 
 
 class Network:
@@ -202,9 +202,23 @@ def printGrid(grid):
     print(row)
 
 
+weights_1 = np.load('./Result/weights_1.npy') if os.path.isfile(
+    './Result/weights_1.npy') else None
+weights_2 = np.load('./Result/weights_2.npy') if os.path.isfile(
+    './Result/weights_2.npy') else None
+weights_3 = np.load('./Result/weights_3.npy') if os.path.isfile(
+    './Result/weights_3.npy') else None
+weights_4 = np.load('./Result/weights_4.npy') if os.path.isfile(
+    './Result/weights_4.npy') else None
+biases_in = np.load('./Result/biases_in.npy') if os.path.isfile(
+    './Result/biases_in.npy') else None
+biases_out = np.load('./Result/biases_out.npy') if os.path.isfile(
+    './Result/biases_out.npy') else None
+
 models = []
 for i in range(num_model):
-  models.append(Network())
+  models.append(Network(weights_1=weights_1, weights_2=weights_2, weights_3=weights_3,
+                weights_4=weights_4, biases_in=biases_in, biases_out=biases_out))
 
 startTime = time.time()
 for episode in range(1, episodes+1):
@@ -232,9 +246,6 @@ for episode in range(1, episodes+1):
 
   print('Episode:{} Best Model:{} Best Score:{}'.format(
       episode, best_model, highest_score))
-  # if (episode % 1000 == 0):
-  #   print('Episode:{} Best Model:{} Best Score:{}'.format(
-  #       episode, best_model, highest_score))
 
   for i in range(len(models)):
     if i == 0:
@@ -249,7 +260,28 @@ for episode in range(1, episodes+1):
 endTime = time.time()
 
 print("Training: " + str(endTime - startTime) + "seconds")
-print(models[0].forward())
-env = Enviroment(starting=models[0].forward())
-env.simulate()
+env = Enviroment()
+obs = env.obs
+for i in range(2 * num_place):
+  if (i % 2 == 0):
+    row, col = models[0].forward(obs)
+    obs = env.place(0, row, col)
+    obs = obs[init_size*init_size:] + obs[:init_size*init_size]
+  else:
+    row, col = models[0].forward(obs)
+    obs = env.place(1, row, col)
+
+print("Placing")
 printGrid(env.grid)
+left_score, right_score = env.simulate()
+print("Left Score: " + str(left_score) + "; Right Score: " + str(right_score))
+printGrid(env.grid)
+
+folder = "Result"
+os.mkdir(folder)
+np.save(folder + '/weights_1.npy', models[0].weights_1)
+np.save(folder + '/weights_2.npy', models[0].weights_2)
+np.save(folder + '/weights_3.npy', models[0].weights_3)
+np.save(folder + '/weights_4.npy', models[0].weights_4)
+np.save(folder + '/biases_in.npy', models[0].biases_in)
+np.save(folder + '/biases_out.npy', models[0].biases_out)
