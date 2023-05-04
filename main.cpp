@@ -39,8 +39,8 @@ int main(int argc, char *argv[]) {
     for (int j = 0; j < frameSize; j++) {
       char c;
       in >> c;
-      initFrame[i * frameSize + j] = (c == '0') ? 0 : 1;
-      if (c != '0' && c != '1') {
+      initFrame[i * frameSize + j] = (c == '0') ? 0 : ((c == '2') ? 2 : 1);
+      if (c != '0' && c != '1' && c != '2') {
         std::cout << "Error in input file, location (" << i << ", " << j
                   << "), c = " << c << "\n";
         return 1;
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
   else if (rendererString == "openmp")
     renderer = new OpenmpRenderer(initFrame, frameSize, pixelSize);
   else
-    renderer = new CpuRenderer(initFrame, frameSize, pixelSize);
+    renderer = new CpuRenderer(initFrame, frameSize, pixelSize, true);
 
   renderer->allocOutputImage();
   renderer->setup();
@@ -121,13 +121,11 @@ void startBenchmark(FrameRenderer *renderer, int simCycles, int size,
   double endTime = CycleTimer::currentSeconds();
   totalTime = endTime - startTime;
 
-  // printf("Advance:  %.4f ms\n", 1000.f * totalAdvanceTime / simCycles);
-  // printf("Render:   %.4f ms\n", 1000.f * totalRenderTime / simCycles);
-  // printf("Total:    %.4f ms\n",
-  //        1000.f * (totalAdvanceTime + totalRenderTime) / simCycles);
-  // printf("File IO:  %.4f ms\n", 1000.f * totalFileSaveTime / simCycles);
-  // printf("\n");
-  // printf("Overall:  %.4f sec (note units are seconds)\n", totalTime);
-  printf("\n%.4f,%.4f\n", 1000.f * totalAdvanceTime / simCycles,
-         1000.f * totalRenderTime / simCycles);
+  printf("Advance:  %.4f ms\n", 1000.f * totalAdvanceTime / simCycles);
+  printf("Render:   %.4f ms\n", 1000.f * totalRenderTime / simCycles);
+  printf("Total:    %.4f ms\n",
+         1000.f * (totalAdvanceTime + totalRenderTime) / simCycles);
+  printf("File IO:  %.4f ms\n", 1000.f * totalFileSaveTime / simCycles);
+  printf("\n");
+  printf("Overall:  %.4f sec (note units are seconds)\n", totalTime);
 }

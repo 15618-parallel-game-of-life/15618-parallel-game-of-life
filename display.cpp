@@ -102,7 +102,7 @@ void renderPicture() {
   double waitStartTime = CycleTimer::currentSeconds(), waitCurrentTime;
   do {
     waitCurrentTime = CycleTimer::currentSeconds();
-  } while (waitCurrentTime - waitStartTime < 0.1f);
+  } while (waitCurrentTime - waitStartTime < 1.0f);
 
   double startTime = CycleTimer::currentSeconds();
 
