@@ -12,6 +12,8 @@
 #include "cudaRenderer.h"
 #include "image.h"
 
+#define SQRT_NUM_THREADS 16
+
 #define DEBUG
 
 #ifdef DEBUG
@@ -45,6 +47,65 @@ __constant__ GlobalConstants cuConstRendererParams;
 // data structure definition end here
 
 // CUDA kernel functions start here
+
+__global__ void kernelAdvanceAnimationWithBuffer(uint8_t *current, uint8_t *next)
+{
+  __shared__ uint8_t buffer[SQRT_NUM_THREADS + 2][SQRT_NUM_THREADS + 2];
+
+  int idxX = blockIdx.x * blockDim.x + threadIdx.x;
+  int idxY = blockIdx.y * blockDim.y + threadIdx.y;
+
+  int size = cuConstRendererParams.size;
+
+  // load the neighborhood elements into local buffer
+  int bufferX = threadIdx.x + 1;
+  int bufferY = threadIdx.y + 1;
+  int globalIdx = idxX * size + idxY;
+
+  if (idxX < size && idxY < size)
+  {
+    buffer[bufferX][bufferY] = current[globalIdx];
+
+    // boundaries
+    if (threadIdx.x == 0)
+      buffer[0][bufferY] = current[((idxX - 1 + size) % size) * size + idxY];
+    if (threadIdx.x == blockDim.x - 1)
+      buffer[SQRT_NUM_THREADS + 1][bufferY] = current[((idxX + 1) % size) * size + idxY];
+    if (threadIdx.y == 0)
+      buffer[bufferX][0] = current[idxX * size + ((idxY - 1 + size) % size)];
+    if (threadIdx.y == blockDim.y - 1)
+      buffer[bufferX][SQRT_NUM_THREADS + 1] = current[idxX * size + ((idxY + 1) % size)];
+    if (threadIdx.x == 0 && threadIdx.y == 0)
+      buffer[0][0] = current[((idxX - 1 + size) % size) * size + ((idxY - 1 + size) % size)];
+    if (threadIdx.x == 0 && threadIdx.y == blockDim.y - 1)
+      buffer[0][SQRT_NUM_THREADS + 1] = current[((idxX - 1 + size) % size) * size + ((idxY + 1) % size)];
+    if (threadIdx.x == blockDim.x - 1 && threadIdx.y == 0)
+      buffer[SQRT_NUM_THREADS + 1][0] = current[((idxX + 1) % size) * size + ((idxY - 1 + size) % size)];
+    if (threadIdx.x == blockDim.x - 1 && threadIdx.y == blockDim.y - 1)
+      buffer[SQRT_NUM_THREADS + 1][SQRT_NUM_THREADS + 1] = current[((idxX + 1) % size) * size + ((idxY + 1) % size)];
+  }
+
+  __syncthreads();
+
+  if (idxX >= size || idxY >= size)
+    return;
+
+  int count = 0;
+  for (int ii = -1; ii <= 1; ii++)
+  {
+    for (int jj = -1; jj <= 1; jj++)
+    {
+      if (buffer[bufferX + ii][bufferY + jj] && !(ii == 0 && jj == 0))
+        count++;
+    }
+  }
+
+  // update next state
+  if (count == 3 || (count == 2 && buffer[bufferX][bufferY]))
+    next[globalIdx] = 1;
+  else
+    next[globalIdx] = 0;
+}
 
 __global__ void kernelAdvanceAnimation(uint8_t *current, uint8_t *next)
 {
@@ -116,7 +177,8 @@ CudaRenderer::~CudaRenderer()
     cudaFree(deviceNextFrame);
     cudaFree(deviceImageData);
   }
-  if (tmpFrame) {
+  if (tmpFrame)
+  {
     delete[] tmpFrame;
   }
 }
@@ -181,8 +243,6 @@ void CudaRenderer::setup()
   cudaMemcpyToSymbol(cuConstRendererParams, &params, sizeof(GlobalConstants));
 }
 
-#define SQRT_NUM_THREADS 16
-
 void CudaRenderer::advanceAnimation()
 {
   dim3 blockDim(SQRT_NUM_THREADS, SQRT_NUM_THREADS, 1);
@@ -191,7 +251,8 @@ void CudaRenderer::advanceAnimation()
       (image->height + blockDim.y - 1) / blockDim.y);
 
   // pixel-level parallelism
-  kernelAdvanceAnimation<<<gridDim, blockDim>>>(deviceCurrentFrame, deviceNextFrame);
+  kernelAdvanceAnimationWithBuffer<<<gridDim, blockDim>>>(deviceCurrentFrame, deviceNextFrame);
+  // kernelAdvanceAnimation<<<gridDim, blockDim>>>(deviceCurrentFrame, deviceNextFrame);
   cudaCheckError(cudaDeviceSynchronize());
 
   // swap currentFrame and nextFrame

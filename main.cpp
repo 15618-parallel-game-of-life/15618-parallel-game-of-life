@@ -98,7 +98,7 @@ void startBenchmark(FrameRenderer *renderer, int simCycles, int size,
 
     char filename[1024];
     if (frameFilename != "no-output") {
-      sprintf(filename, "outputs/%s_%04d.txt", frameFilename.c_str(), frame);
+      sprintf(filename, "outputs/%s_%04d.log", frameFilename.c_str(), frame);
       FILE *fp = fopen(filename, "wb");
       if (!fp) {
         fprintf(stderr, "Error: could not open %s for write\n", filename);
