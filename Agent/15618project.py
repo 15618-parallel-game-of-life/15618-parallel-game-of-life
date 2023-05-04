@@ -4,12 +4,12 @@ import numpy as np
 import random
 from cpu_renderer_wrapper import PyCpuRenderer
 
-grid_size = 100
-init_size = 30
+grid_size = 20
+init_size = 10
 sim_cycles = 1000
-num_place = 400
-num_model = 20
-episodes = 10
+num_place = 25
+num_model = 25
+episodes = 1000
 
 
 class Network:
