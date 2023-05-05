@@ -2,27 +2,27 @@ import os
 import time
 import numpy as np
 import random
-from cpu_renderer_wrapper import PyCpuRenderer
 import multiprocessing
 
 grid_size = 20
-init_size = 10
 sim_cycles = 1000
 num_place = 25
 num_model = 25
-episodes = 1000
+episodes = 5000
+
+folder = "Full_Grid_Result"
 
 
 class Network:
-  def __init__(self, init_size=init_size, weights_1=None, weights_2=None, weights_3=None, weights_4=None, biases_in=None, biases_out=None):
+  def __init__(self, init_size=grid_size, weights_1=None, weights_2=None, weights_3=None, weights_4=None, biases_in=None, biases_out=None):
     self.init_size = init_size
     self.network_outputs = 2 * self.init_size
-    self.layer_1 = 2 * self.init_size * self.init_size
+    self.layer_1 = self.init_size * self.init_size
     self.layer_2 = self.init_size * self.init_size
     self.layer_3 = self.init_size * self.init_size
 
     if weights_1 is None:
-      weights_1_shape = (self.layer_1, 2 * self.init_size * self.init_size)
+      weights_1_shape = (self.layer_1, self.init_size * self.init_size)
       self.weights_1 = np.random.normal(size=weights_1_shape)
     else:
       self.weights_1 = weights_1
@@ -53,7 +53,7 @@ class Network:
   def clone(self):
     return Network(np.copy(self.weights_1), np.copy(self.weights_2), np.copy(self.weights_3), np.copy(self.weights_4), np.copy(self.biases_in), np.copy(self.biases_out), self.type)
 
-  def forward(self, observations=np.zeros(2 * init_size * init_size)):
+  def forward(self, observations=np.zeros(grid_size * grid_size)):
     outputs_sub0 = np.add(observations, self.biases_in)
     outputs_sub1 = np.matmul(self.weights_1, outputs_sub0)
     outputs_sub2 = np.matmul(self.weights_2, outputs_sub1)
@@ -132,7 +132,7 @@ class Network:
 
     return result
 
-  def naive_forward(self, observations=np.zeros(2 * init_size * init_size)):
+  def naive_forward(self, observations=np.zeros(grid_size * grid_size)):
     outputs_sub0 = self.naive_VVadd(observations, self.biases_in)
     outputs_sub1 = self.naive_MVmult(self.weights_1, outputs_sub0)
     outputs_sub2 = self.naive_MVmult(self.weights_2, outputs_sub1)
@@ -165,25 +165,21 @@ class Network:
 
 
 class Enviroment:
-  def __init__(self, size=grid_size, init=init_size, starting_left=None, starting_right=None, cycles=sim_cycles):
+  def __init__(self, size=grid_size, cycles=sim_cycles):
+    self.init_size = size
     self.grid_size = size
-    self.init_size = init
     self.grid = [[0 for col in range(self.grid_size)]
                  for row in range(self.grid_size)]
-    self.obs = [0 for i in range(2 * self.init_size * self.init_size)]
-    self.middle = int(self.grid_size/2)
+    self.obs = [0 for i in range(self.init_size * self.init_size)]
     self.sim_cycles = cycles
 
   def place(self, player, row, col):
     if player == 0:
-      start = self.middle - self.init_size
-      self.grid[start+row][start+col] = 1
+      self.grid[row][col] = 1
       self.obs[row * self.init_size + col] = 1
     else:
-      start = self.middle
-      self.grid[start+row][start+col] = 2
-      self.obs[self.init_size * self.init_size +
-               row * self.init_size + col] = 1
+      self.grid[row][col] = 2
+      self.obs[row * self.init_size + col] = 2
 
     return self.obs
 
@@ -249,12 +245,14 @@ class Enviroment:
       left_cur_cnt, right_cur_cnt = self.step()
       if left_cur_cnt == 0 and right_cur_cnt == 0:
         break
+
       if left_cur_cnt > left_max_cnt:
         left_max_cnt = left_cur_cnt
         left_max_step = step + 1
       if right_cur_cnt > right_max_cnt:
         right_max_cnt = right_cur_cnt
         right_max_step = step + 1
+
       if left_cur_cnt > right_cur_cnt:
         left_score = left_score + 1
       if right_cur_cnt > left_cur_cnt:
@@ -289,7 +287,6 @@ def naive_selfPlay(model):
       if (i % 2 == 0):
         row, col = models[0].naive_forward(obs)
         obs = env.place(0, row, col)
-        obs = obs[init_size*init_size:] + obs[:init_size*init_size]
       else:
         row, col = model.naive_forward(obs)
         obs = env.place(1, row, col)
@@ -299,7 +296,6 @@ def naive_selfPlay(model):
       if (i % 2 == 0):
         row, col = model.naive_forward(obs)
         obs = env.place(0, row, col)
-        obs = obs[init_size*init_size:] + obs[:init_size*init_size]
       else:
         row, col = models[0].naive_forward(obs)
         obs = env.place(1, row, col)
@@ -319,7 +315,6 @@ def selfPlay(model):
       if (i % 2 == 0):
         row, col = models[0].forward(obs)
         obs = env.place(0, row, col)
-        obs = obs[init_size*init_size:] + obs[:init_size*init_size]
       else:
         row, col = model.forward(obs)
         obs = env.place(1, row, col)
@@ -329,7 +324,6 @@ def selfPlay(model):
       if (i % 2 == 0):
         row, col = model.forward(obs)
         obs = env.place(0, row, col)
-        obs = obs[init_size*init_size:] + obs[:init_size*init_size]
       else:
         row, col = models[0].forward(obs)
         obs = env.place(1, row, col)
@@ -341,162 +335,23 @@ def selfPlay(model):
     return -1.0
 
 
-weights_1 = np.load('./Result/weights_1.npy') if os.path.isfile(
-    './Result/weights_1.npy') else None
-weights_2 = np.load('./Result/weights_2.npy') if os.path.isfile(
-    './Result/weights_2.npy') else None
-weights_3 = np.load('./Result/weights_3.npy') if os.path.isfile(
-    './Result/weights_3.npy') else None
-weights_4 = np.load('./Result/weights_4.npy') if os.path.isfile(
-    './Result/weights_4.npy') else None
-biases_in = np.load('./Result/biases_in.npy') if os.path.isfile(
-    './Result/biases_in.npy') else None
-biases_out = np.load('./Result/biases_out.npy') if os.path.isfile(
-    './Result/biases_out.npy') else None
+weights_1 = np.load(folder + '/weights_1.npy') if os.path.isfile(
+    folder + '/weights_1.npy') else None
+weights_2 = np.load(folder + '/weights_2.npy') if os.path.isfile(
+    folder + '/weights_2.npy') else None
+weights_3 = np.load(folder + '/weights_3.npy') if os.path.isfile(
+    folder + '/weights_3.npy') else None
+weights_4 = np.load(folder + '/weights_4.npy') if os.path.isfile(
+    folder + '/weights_4.npy') else None
+biases_in = np.load(folder + '/biases_in.npy') if os.path.isfile(
+    folder + '/biases_in.npy') else None
+biases_out = np.load(folder + '/biases_out.npy') if os.path.isfile(
+    folder + '/biases_out.npy') else None
 
 models = []
 for i in range(num_model):
   models.append(Network(weights_1=weights_1, weights_2=weights_2, weights_3=weights_3,
                 weights_4=weights_4, biases_in=biases_in, biases_out=biases_out))
-
-# startTime = time.time()
-# for episode in range(1, episodes+1):
-#   highest_score = 0.0
-#   best_model = -1
-#   for j in range(len(models)):
-#     env = Enviroment()
-#     obs = env.obs
-#     if (random.randint(0, 1) == 0):
-#       for i in range(2 * num_place):
-#         if (i % 2 == 0):
-#           row, col = models[0].naive_forward(obs)
-#           obs = env.place(0, row, col)
-#           obs = obs[init_size*init_size:] + obs[:init_size*init_size]
-#         else:
-#           row, col = models[j].naive_forward(obs)
-#           obs = env.place(1, row, col)
-#       target, score = env.simulate()
-#     else:
-#       for i in range(2 * num_place):
-#         if (i % 2 == 0):
-#           row, col = models[j].naive_forward(obs)
-#           obs = env.place(0, row, col)
-#           obs = obs[init_size*init_size:] + obs[:init_size*init_size]
-#         else:
-#           row, col = models[0].naive_forward(obs)
-#           obs = env.place(1, row, col)
-#       score, target = env.simulate()
-
-#     if score <= target:
-#       score = -1.0
-
-#     if score > highest_score:
-#       highest_score = score
-#       best_model = j
-
-#   if best_model == -1:
-#     best_model = 0
-
-#   # print('Episode:{} Best Model:{} Best Score:{}'.format(
-#   #     episode, best_model, highest_score))
-
-#   for i in range(len(models)):
-#     if i == 0:
-#       models[i].copy(network=models[best_model])
-#     elif i < (0.7*len(models)):
-#       models[i].copy_and_mutate(network=models[best_model])
-#     elif i < (0.9*len(models)):
-#       models[i].copy_and_mutate(network=models[best_model], mr=0.3)
-#     else:
-#       models[i].copy_and_mutate(network=models[best_model], mr=0.7)
-
-# endTime = time.time()
-# print("Naive Training: " + str(endTime - startTime) + "seconds")
-
-# startTime = time.time()
-# for episode in range(1, episodes+1):
-#   highest_score = 0.0
-#   best_model = -1
-#   for j in range(len(models)):
-#     env = Enviroment()
-#     obs = env.obs
-#     if (random.randint(0, 1) == 0):
-#       for i in range(2 * num_place):
-#         if (i % 2 == 0):
-#           row, col = models[0].forward(obs)
-#           obs = env.place(0, row, col)
-#           obs = obs[init_size*init_size:] + obs[:init_size*init_size]
-#         else:
-#           row, col = models[j].forward(obs)
-#           obs = env.place(1, row, col)
-#       target, score = env.simulate()
-#     else:
-#       for i in range(2 * num_place):
-#         if (i % 2 == 0):
-#           row, col = models[j].forward(obs)
-#           obs = env.place(0, row, col)
-#           obs = obs[init_size*init_size:] + obs[:init_size*init_size]
-#         else:
-#           row, col = models[0].forward(obs)
-#           obs = env.place(1, row, col)
-#       score, target = env.simulate()
-
-#     if score <= target:
-#       score = -1.0
-
-#     if score > highest_score:
-#       highest_score = score
-#       best_model = j
-
-#   if best_model == -1:
-#     best_model = 0
-
-#   # print('Episode:{} Best Model:{} Best Score:{}'.format(
-#   #     episode, best_model, highest_score))
-
-#   for i in range(len(models)):
-#     if i == 0:
-#       models[i].copy(network=models[best_model])
-#     elif i < (0.7*len(models)):
-#       models[i].copy_and_mutate(network=models[best_model])
-#     elif i < (0.9*len(models)):
-#       models[i].copy_and_mutate(network=models[best_model], mr=0.3)
-#     else:
-#       models[i].copy_and_mutate(network=models[best_model], mr=0.7)
-
-# endTime = time.time()
-# print("NumPy Training: " + str(endTime - startTime) + "seconds")
-
-# startTime = time.time()
-# for episode in range(1, episodes+1):
-#   highest_score = 0.0
-#   best_model = -1
-#   with multiprocessing.Pool() as pool:
-#     scores = pool.map(naive_selfPlay, models)
-
-#   for i in range(len(models)):
-#     if scores[i] > highest_score:
-#       highest_score = scores[i]
-#       best_model = i
-
-#   if best_model == -1:
-#     best_model = 0
-
-#   # print('Episode:{} Best Model:{} Best Score:{}'.format(
-#   #     episode, best_model, highest_score))
-
-#   for i in range(len(models)):
-#     if i == 0:
-#       models[i].copy(network=models[best_model])
-#     elif i < (0.7*len(models)):
-#       models[i].copy_and_mutate(network=models[best_model])
-#     elif i < (0.9*len(models)):
-#       models[i].copy_and_mutate(network=models[best_model], mr=0.3)
-#     else:
-#       models[i].copy_and_mutate(network=models[best_model], mr=0.7)
-
-# endTime = time.time()
-# print("Parallel Training: " + str(endTime - startTime) + "seconds")
 
 startTime = time.time()
 for episode in range(1, episodes+1):
@@ -513,8 +368,8 @@ for episode in range(1, episodes+1):
   if best_model == -1:
     best_model = 0
 
-  # print('Episode:{} Best Model:{} Best Score:{}'.format(
-  #     episode, best_model, highest_score))
+  print('Episode:{} Best Model:{} Best Score:{}'.format(
+      episode, best_model, highest_score))
 
   for i in range(len(models)):
     if i == 0:
@@ -526,6 +381,16 @@ for episode in range(1, episodes+1):
     else:
       models[i].copy_and_mutate(network=models[best_model], mr=0.7)
 
+  if not os.path.exists(folder):
+    os.mkdir(folder)
+  np.save(folder + '/weights_1.npy', models[0].weights_1)
+  np.save(folder + '/weights_2.npy', models[0].weights_2)
+  np.save(folder + '/weights_3.npy', models[0].weights_3)
+  np.save(folder + '/weights_4.npy', models[0].weights_4)
+  np.save(folder + '/biases_in.npy', models[0].biases_in)
+  np.save(folder + '/biases_out.npy', models[0].biases_out)
+
+
 endTime = time.time()
 print("Numpy + Parallel Training: " + str(endTime - startTime) + "seconds")
 
@@ -535,20 +400,16 @@ for i in range(2 * num_place):
   if (i % 2 == 0):
     row, col = models[0].forward(obs)
     obs = env.place(0, row, col)
-    obs = obs[init_size*init_size:] + obs[:init_size*init_size]
   else:
     row, col = models[0].forward(obs)
     obs = env.place(1, row, col)
 
 print("Placing")
-print(env.getInit())
-print("Grid")
 printGrid(env.grid)
 left_score, right_score = env.simulate()
 print("Left Score: " + str(left_score) + "; Right Score: " + str(right_score))
 printGrid(env.grid)
 
-folder = "Result"
 if not os.path.exists(folder):
   os.mkdir(folder)
 np.save(folder + '/weights_1.npy', models[0].weights_1)
